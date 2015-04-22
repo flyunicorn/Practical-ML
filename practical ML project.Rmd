@@ -1,0 +1,70 @@
+---
+title: "Practical ML Project"
+author: "Cynthia"
+date: "Wednesday, April 22, 2015"
+output: html_document
+---
+
+#Practical Machine Learning - Course Project
+
+##1. Preparation - load package, and set seed for reproduceability
+```{r}
+library(caret)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+set.seed(1234)
+```
+
+##2. Getting and cleaning data - including deleting columns with all missing values and irrelavant columns
+Note: Data for this project come from: http://groupware.les.inf.puc-rio.br/har.
+```{r}
+trainUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+training <- read.csv(url(trainUrl), na.strings=c("NA","#DIV/0!",""))
+testing <- read.csv(url(testUrl), na.strings=c("NA","#DIV/0!",""))
+training<-training[,colSums(is.na(training)) == 0]
+testing <-testing[,colSums(is.na(testing)) == 0]
+training<-training[,-c(1:7)]
+testing <-testing[,-c(1:7)]
+dim(training)
+dim(testing)
+```
+
+##3. Cross-validation - partition training data by random sample without replacement of 75% and 25% rule
+```{r}
+subsamples <- createDataPartition(y=training$classe, p=0.75, list=FALSE)
+subTraining <- training[subsamples, ] 
+subTesting <- training[-subsamples, ]
+dim(subTraining)
+dim(subTesting)
+```
+##4. Exploratory data analysis - graph the "class"" variable
+```{r}
+plot(subTraining$classe, col="lightgreen", main="Bar Plot of classe levels in subTraining dataset", xlab="classe levels", ylab="Frequency")
+```
+
+##5.1. Model building + test result by confusion matrix - decision tree
+```{r}
+model1 <- rpart(classe ~ ., data=subTraining, method="class")
+prediction1 <- predict(model1, subTesting, type = "class")
+rpart.plot(model1, main="Classification Tree", extra=102, under=TRUE, faclen=0)
+confusionMatrix(prediction1, subTesting$classe)
+```
+
+##5.2. Model building + test result by confusion matrix - random forest
+```{r}
+model2 <- randomForest(classe ~. , data=subTraining, method="class")
+prediction2 <- predict(model2, subTesting, type = "class")
+confusionMatrix(prediction2, subTesting$classe)
+```
+
+##6. Conclusion and cross-validation
+1. According to accuracy in the two tables(0.995 VS. 0.739), random forest performed better than decision tree, which is as expected. Hence, random forest model chosen. 
+2. Expected out-of-sample error is estimated at 0.005, which is calculated as 1 - accuracy for predictions made against cross-validation. 
+3. Test dataset comprises 20 cases. With an accuracy above 99% on cross-validation data, we expect very few test samples will be missclassified.
+```{r}
+predictfinal <- predict(model2, testing, type="class")
+predictfinal
+```
